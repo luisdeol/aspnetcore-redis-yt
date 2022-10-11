@@ -2,7 +2,9 @@ namespace RedisToDoList.API.Controllers
 {
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.EntityFrameworkCore;
+    using Newtonsoft.Json;
     using RedisToDoList.API.Core.Entities;
+    using RedisToDoList.API.Infrastructure.Caching;
     using RedisToDoList.API.Infrastructure.Persistence;
     using RedisToDoList.API.Models;
 
@@ -11,18 +13,33 @@ namespace RedisToDoList.API.Controllers
     public class ToDosController : ControllerBase
     {
         private readonly ToDoListDbContext _context;
-        public ToDosController(ToDoListDbContext context)
+        private readonly ICachingService _cache;
+        public ToDosController(ICachingService cache, ToDoListDbContext context)
         {
             _context = context;
+            _cache = cache;
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            ToDo? todo = await _context.ToDos.SingleOrDefaultAsync(t => t.Id == id);
+            var todoCache = await _cache.GetAsync(id.ToString());
+            ToDo? todo;
+
+            if (!string.IsNullOrWhiteSpace(todoCache)) {
+                todo = JsonConvert.DeserializeObject<ToDo>(todoCache);
+
+                Console.WriteLine("Loadded from cache.");
+
+                return Ok(todo);
+            }
+
+            todo = await _context.ToDos.SingleOrDefaultAsync(t => t.Id == id);
 
             if (todo == null)
                 return NotFound();
+
+            await _cache.SetAsync(id.ToString(), JsonConvert.SerializeObject(todo));
 
             return Ok(todo);
         }

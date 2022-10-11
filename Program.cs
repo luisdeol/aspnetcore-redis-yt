@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using RedisToDoList.API.Infrastructure.Caching;
 using RedisToDoList.API.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,6 +7,12 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddDbContext<ToDoListDbContext>(o => o.UseInMemoryDatabase("ToDoListDb"));
 
+builder.Services.AddScoped<ICachingService, CachingService>();
+
+builder.Services.AddStackExchangeRedisCache(o => {
+    o.InstanceName = "instance";
+    o.Configuration = "localhost:6379";
+});
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
